@@ -1,0 +1,23 @@
+factorial:
+    # Base case kontrolü
+    if ($a0 == 1) {
+        $v0 = 1
+        return
+    }
+    
+    # Stack'e kaydet
+    Stack'e $a0 kaydet
+    Stack'e $ra kaydet
+    
+    # Recursive call
+    $a0 = $a0 - 1
+    factorial çağır
+    
+    # Stack'ten geri yükle
+    $ra'yı geri yükle
+    $a0'ı geri yükle
+    
+    # Hesapla
+    $v0 = $a0 × $v0
+    
+    return

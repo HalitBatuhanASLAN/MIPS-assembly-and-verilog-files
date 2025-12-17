@@ -1,0 +1,5 @@
+module alu_control(
+input wire [1:0] alu_op, // From Control Unit
+input wire [5:0] funct, // From instruction [5:0]
+output wire [3:0] alu_control // To ALU
+);

@@ -1,0 +1,21 @@
+module and_or_xor(
+	input wire [3:0] a,
+	input wire [3:0] b,
+	input s[1:0] sel,
+	output [3:0] res
+);
+
+wire [3:0] wAnd;
+wire [3:0] wOr;
+wire [3:0] wXor;
+
+genver i
+generate
+	for(i = 0;i<4;i = i +1)begin:loop
+		and g0(wAnd[i],a[i],b[i]);
+		or g1(wOr[i],a[i],b[i]);
+		xor g2(wXor[i],a[i],b[i]);
+	end
+endgenerate
+
+endmodule

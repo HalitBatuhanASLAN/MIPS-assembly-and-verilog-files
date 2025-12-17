@@ -1,0 +1,35 @@
+module subtractor_32bit(
+	
+	input wire [31:0] a,
+	input wire [31:0] b,
+	output wire [31:0] difference,
+	output wire borrow_out
+);
+
+wire [31:0] not_b;
+wire [32:0] carry;
+
+genver i;
+generate
+	for(i = 0;i<32;i = i +1) begin: inverse
+		not inverse (not_b[i],b[i]);
+	end
+endgenerate
+
+assign carry[0] = 1'b1;
+
+generate
+	for (i = 0; i < 32; i = i + 1) begin : sub_loop
+		full_adder_1bit fa (
+			.a(a[i]),
+			.b(not_b[i]),
+         .cin(carry[i]),
+         .sum(difference[i]),
+         .cout(carry[i+1])
+			);
+   end
+endgenerate
+
+assign borrow_out = carry[32]
+
+endmodule

@@ -1,0 +1,24 @@
+module mux2to1_32bit(
+	
+	input wire [31:0] input0, //register data
+	input wire [31:0] input1, //immediate data
+	input wire select, //alu src
+	output wire [31:0] out
+);
+
+genvar i;
+
+//generate bloğu bir donanımı kopyalamak için kullanılır
+generate
+	for(i = 0;i<32;i = i + 1) begin mux_loop
+	
+		mux2to1_1bit bit_mux(
+			.i0(input0[i]),
+			.i1(input1[i]),
+			.sel(select),
+			.out(out[i])
+		);
+	end
+endgenerate
+
+endmodule

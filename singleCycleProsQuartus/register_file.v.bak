@@ -1,0 +1,12 @@
+module register_file(
+	input wire clk,
+	input wire reset,
+	input wire reg_write, // Write enable
+	input wire [4:0] read_reg1, // rs
+	input wire [4:0] read_reg2, // rt
+	input wire [4:0] write_reg, // rd (R-type) or rt (I-type)
+	input wire [31:0] write_data,
+	output wire [31:0] read_data1,
+	output wire [31:0] read_data2
+);
+endmodule

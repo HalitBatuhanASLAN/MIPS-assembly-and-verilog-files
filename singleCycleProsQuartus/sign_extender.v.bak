@@ -1,0 +1,4 @@
+module sign_extender(
+input wire [15:0] immediate_in, // 16-bit immediate from instruction
+output wire [31:0] immediate_out // 32-bit sign-extended value
+);

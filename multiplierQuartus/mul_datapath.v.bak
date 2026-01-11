@@ -1,0 +1,113 @@
+module mul_datapath #(
+    parameter N = 32 // Varsayılan genişlik 32 bit [cite: 12]
+)(
+    input  wire clk,
+    input  wire rst,
+    
+    // Control Unit'ten gelen emirler (Control Signals) [cite: 96-105]
+    input  wire ld_operands,  // Girdileri yükle
+    input  wire clr_product,  // Sonucu sıfırla
+    input  wire add_enable,   // Toplama yap (Accumulate)
+    input  wire shift_enable, // Kaydırma yap
+    input  wire cnt_load,     // Sayacı N değerine kur
+    input  wire cnt_dec,      // Sayacı 1 azalt
+    
+    // Control Unit'e giden durum bilgileri (Status Signals) [cite: 107-111]
+    output wire cnt_zero,     // Sayaç bitti mi? (Loop termination)
+    output wire lsb_is_one,   // Çarpanın son biti 1 mi?
+    
+    // Dış dünyadan gelen veriler [cite: 114-119]
+    input  wire [N-1:0] multiplicand_in,
+    input  wire [N-1:0] multiplier_in,
+    output wire [2*N-1:0] product_out // 2N bitlik sonuç [cite: 120]
+);
+
+    // ========================================================================
+    // 1. İÇ KAYITÇILAR (INTERNAL REGISTERS)
+    // Behavioral kodda "reg" kullanmalıyız[cite: 34].
+    // ========================================================================
+    
+    // Çarpılanı tutan yazmaç (2N genişliğinde olmalı çünkü sola kayacak)
+    reg [2*N-1:0] mcand_reg;
+    
+    // Çarpanı tutan yazmaç (N genişliğinde, sağa kayacak)
+    reg [N-1:0]   mplier_reg;
+    
+    // Sonucu biriktiren yazmaç (Accumulator - 2N genişliğinde)
+    reg [2*N-1:0] prod_reg;
+    
+    // Döngü sayacı (Counter)
+    // N sayısını tutabilmesi için log2(N)+1 bit lazım ama basitlik için integer kullanabiliriz 
+    // veya N=32 için 6 bit yeterlidir. Parametrik olması için integer güvenlidir.
+    integer counter; 
+
+    // ========================================================================
+    // 2. KOMBİNASYONEL MANTIK (COMBINATIONAL LOGIC)
+    // "assign" kullanarak sürekli atamalar [cite: 33]
+    // ========================================================================
+
+    // Çıktı portuna register değerini bağla
+    assign product_out = prod_reg;
+
+    // Control Unit'e gidecek sinyal: Çarpanın en sağındaki bit (LSB) 1 mi?
+    assign lsb_is_one = mplier_reg[0];
+
+    // Control Unit'e gidecek sinyal: Sayaç 0 oldu mu?
+    assign cnt_zero = (counter == 0);
+
+    // 2N-bit Toplayıcı (Adder) Mantığı
+    // Sadece add_enable geldiğinde kullanılacak ama donanım olarak burada durur.
+    wire [2*N-1:0] sum_result;
+    assign sum_result = prod_reg + mcand_reg; // [cite: 171] Add2N mantığı
+
+    // ========================================================================
+    // 3. ARDIŞIL MANTIK (SEQUENTIAL LOGIC)
+    // Sadece saat (clk) kenarında değişen devreler [cite: 34]
+    // ========================================================================
+    
+    always @(posedge clk) begin
+        // --- Reset Durumu ---
+        if (rst) begin
+            mcand_reg  <= 0;
+            mplier_reg <= 0;
+            prod_reg   <= 0;
+            counter    <= 0;
+        end 
+        else begin
+            // --- 1. Operands Loading (Yükleme) ---
+            if (ld_operands) begin
+                // Çarpılanı 2N bite genişleterek yükle (Alt 32 bite koy)
+                mcand_reg  <= { {N{1'b0}}, multiplicand_in }; 
+                // Çarpanı olduğu gibi yükle
+                mplier_reg <= multiplier_in;
+            end
+
+            // --- 2. Product Clearing (Sonuç Sıfırlama) ---
+            if (clr_product) begin
+                prod_reg <= 0;
+            end
+            
+            // --- 3. Addition (Toplama) ---
+            // Eğer kontrol ünitesi "topla" derse (lsb_is_one 1 ise FSM bunu aktif eder)
+            if (add_enable) begin
+                prod_reg <= sum_result; // Toplayıcı sonucunu kaydet
+            end
+
+            // --- 4. Shifting (Kaydırma) ---
+            // Shift-and-Add algoritmasının kalbi
+            if (shift_enable) begin
+                mcand_reg  <= mcand_reg << 1;  // Çarpılanı Sola Kaydır (x2)
+                mplier_reg <= mplier_reg >> 1; // Çarpanı Sağa Kaydır (/2)
+            end
+
+            // --- 5. Counter Operations (Sayaç İşlemleri) ---
+            if (cnt_load) begin
+                counter <= N; // Döngü N defa dönecek [cite: 182]
+            end
+            else if (cnt_dec) begin
+                counter <= counter - 1; // Her turda azalt
+            end
+        end
+    end
+
+endmodule

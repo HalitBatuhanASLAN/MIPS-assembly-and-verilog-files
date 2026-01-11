@@ -1,0 +1,133 @@
+[cite_start]`timescale 1ns/1ps // Zaman birimi ayarı [cite: 201]
+
+module seq_multiplier_tb;
+
+    // Parametreler
+    localparam N = 32; [cite_start]// 32-bit test yapacağız [cite: 203]
+
+    // Girişler (Testbench'te reg olur)
+    reg clk;
+    reg rst;
+    reg start;
+    reg [N-1:0] multiplicand;
+    reg [N-1:0] multiplier;
+
+    // Çıkışlar (Testbench'te wire olur)
+    wire [2*N-1:0] product;
+    wire busy;
+    wire done;
+
+    // Beklenen Doğru Sonuç (Referans)
+    reg [2*N-1:0] expected_product;
+    integer error_count = 0; // Hataları sayar
+
+    [cite_start]// 1. Modülü Çağır (Unit Under Test - UUT) [cite: 211-215]
+    seq_multiplier #(
+        .N(N)
+    ) uut (
+        .clk(clk),
+        .rst(rst),
+        .start(start),
+        .multiplicand(multiplicand),
+        .multiplier(multiplier),
+        .product(product),
+        .busy(busy),
+        .done(done)
+    );
+
+    [cite_start]// 2. Saat Sinyali Üretimi (10ns periyot) [cite: 210]
+    initial clk = 0;
+    always #5 clk = ~clk;
+
+    // 3. Test Senaryoları
+    initial begin
+        // Simülasyon başı ayarları
+        $display("------------------------------------------------");
+        $display("TEST BASLIYOR: Sequential Multiplier (N=%0d)", N);
+        $display("------------------------------------------------");
+        
+        rst = 1;
+        start = 0;
+        multiplicand = 0;
+        multiplier = 0;
+
+        // Reset uygula
+        repeat (5) @(posedge clk);
+        rst = 0;
+        @(posedge clk);
+
+        // --- TEST 1: Temel Çarpma (10 * 5) ---
+        run_test(32'd10, 32'd5);
+
+        [cite_start]// --- TEST 2: Sıfır ile Çarpma (12345 * 0) [cite: 192] ---
+        run_test(32'd12345, 32'd0);
+
+        [cite_start]// --- TEST 3: Etkisiz Eleman (999 * 1) [cite: 192] ---
+        run_test(32'd999, 32'd1);
+
+        // --- TEST 4: Büyük Sayılar (Max değerlere yakın) ---
+        run_test(32'hFFFF0000, 32'h0000FFFF);
+
+        [cite_start]// --- TEST 5: Rastgele Testler (10 Adet) [cite: 192] ---
+        repeat (10) begin
+            run_test($random, $random);
+        end
+
+        // Bitiş Raporu
+        $display("------------------------------------------------");
+        if (error_count == 0)
+            $display("SONUC: TUM TESTLER BASARIYLA GECTI (PASS)!");
+        else
+            $display("SONUC: %0d ADET HATA BULUNDU (FAIL)!", error_count);
+        $display("------------------------------------------------");
+        
+        $stop; // Simülasyonu durdur
+    end
+
+    // --- Yardımcı Task: Testi Koştur ve Kontrol Et ---
+    task run_test;
+        input [N-1:0] in_a;
+        input [N-1:0] in_b;
+        begin
+            [cite_start]// 1. Girdileri ver ve Start'a bas [cite: 195]
+            @(posedge clk);
+            wait (busy == 0); // Meşguliyetin bitmesini bekle
+            @(posedge clk);
+            
+            multiplicand = in_a;
+            multiplier   = in_b;
+            start = 1;      // Start pulse ver
+            @(posedge clk);
+            start = 0;      // Start'ı çek
+
+            [cite_start]// 2. Done sinyalini bekle (Timeout korumalı) [cite: 196, 199]
+            fork : wait_logic
+                begin
+                    wait(done); // Done gelene kadar bekle
+                end
+                begin
+                    // Timeout: Eğer 2000 cycle boyunca bitmezse hata ver
+                    repeat(2000) @(posedge clk);
+                    $display("HATA: Zaman asimi (Timeout)! FSM dongude kaldi.");
+                    $stop;
+                end
+            join_any
+            disable wait_logic; // Diğer bekleyen thread'i öldür
+
+            [cite_start]// 3. Sonucu Kontrol Et [cite: 197]
+            // Verilog'un kendi çarpma operatörü (*) referans alınır
+            expected_product = in_a * in_b; // Dikkat: Burası 32 bit * 32 bit -> 64 bit olmalı
+            
+            @(posedge clk); // Değerin oturması için bekle
+            
+            if (product !== expected_product) begin
+                $display("HATA: A=%0d, B=%0d | Beklenen=%0d, Alinan=%0d", 
+                         in_a, in_b, expected_product, product);
+                error_count = error_count + 1; [cite_start]// [cite: 198]
+            end else begin
+                $display("BASARILI: %0d * %0d = %0d", in_a, in_b, product);
+            end
+        end
+    endtask
+
+endmodule
